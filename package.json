@@ -1,0 +1,44 @@
+{
+  "name": "@lijuhong1981/picking",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "module": "index.js",
+  "main": "index.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs": "jsdoc2md --files index.js > API.md"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lijuhong1981/threePicking.git"
+  },
+  "keywords": [
+    "three",
+    "webgl",
+    "webgpu",
+    "picking",
+    "raycast",
+    "gpupick",
+    "renderpick",
+    "colorpick",
+    "depthpick"
+  ],
+  "author": "lijuhong1981",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lijuhong1981/threePicking/issues"
+  },
+  "homepage": "https://github.com/lijuhong1981/threePicking#readme",
+  "dependencies": {
+    "@lijuhong1981/jslibs": "^1.4.25",
+    "@lijuhong1981/threeutils": "^1.0.1",
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "jsdoc-to-markdown": "^9.1.3"
+  }
+}
