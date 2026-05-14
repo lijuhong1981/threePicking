@@ -1245,12 +1245,12 @@ class Picking extends Destroyable {
         return this.windowDepthRenderTarget;
     }
     /**
-     * 将颜色拾取或深度拾取内容渲染至调试Canvas
+     * 将颜色拾取或深度拾取内容渲染至屏幕以方便调试
      * @param {Scene} scene
      * @param {Camera} camera
      * @private
     */
-    renderToDebugCanvas(scene, camera) {
+    renderDebug(scene, camera) {
         if (this.debugColorPicking === true || this.debugDepthPicking === true) {
             if (this.debugColorPicking === true) {
                 const target = this.getWindowColorRenderTarget(camera, scene);
