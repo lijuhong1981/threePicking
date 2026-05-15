@@ -581,6 +581,14 @@ class Picking extends Destroyable {
         };
     }
     /**
+     * 当前渲染器的窗口画布元素
+     * @type {HTMLCanvasElement}
+     * @readonly
+    */
+    get canvas() {
+        return this.renderer.domElement;
+    }
+    /**
      * 确保拾取结果函数，用于确保拾取结果对象的属性完整，可由用户自定义。
      * @param {PickedResult} result - 拾取结果对象
      * @param {object} options - 配置参数，参见{@link Picking#raycast}
@@ -1045,7 +1053,6 @@ class Picking extends Destroyable {
     /**
      * 渲染拾取，即GPU拾取，先将场景渲染至RenderTarget后读取像素进行拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
      * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
-     * @param {WebGLRenderer|WebGPURenderer} renderer - 渲染器实例
      * @param {Camera} camera - 相机
      * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标，可以是场景、对象或对象数组
      * @param {object} [options] - 配置参数
@@ -1055,8 +1062,8 @@ class Picking extends Destroyable {
      * @returns {Promise<{object:Object3D,point:Vector3}|undefined>} 异步返回拾取结果，包含拾取到的对象与位置点，未拾取到则返回undefined。
      * @private
     */
-    async renderPick(windowPosition, renderer, camera, target, options = {}) {
-        const { pickingColorRenderTarget, pickingDepthRenderTarget } = this;
+    async renderPick(windowPosition, camera, target, options = {}) {
+        const { renderer, pickingColorRenderTarget, pickingDepthRenderTarget } = this;
         const pickTarget = options.pickTarget ?? PickTargetType.ALL;
         const pickObject = pickTarget === PickTargetType.POSITION ? false : true;
         const pickPosition = pickTarget === PickTargetType.OBJECT ? false : true;
@@ -1171,22 +1178,22 @@ class Picking extends Destroyable {
      * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
     async pick(windowPosition, camera, target, options) {
-        const renderer = this.renderer;
+        const canvas = this.canvas;
         const pickingMode = options.mode ?? this.mode;
         let result = undefined;
         switch (pickingMode) {
             case PickingMode.FAST:
-                result = await this.renderPick(windowPosition, renderer, camera, target, options);
+                result = await this.renderPick(windowPosition, camera, target, options);
                 break;
             case PickingMode.PRECISION:
-                result = this.raycastNearestFromWindow(windowPosition, renderer.domElement, camera, target, options);
+                result = this.raycastNearestFromWindow(windowPosition, canvas, camera, target, options);
                 break;
             case PickingMode.NORMAL:
                 const pickTarget = options.pickTarget ?? PickTargetType.ALL;
                 options.pickTarget = PickTargetType.OBJECT;
-                result = await this.renderPick(windowPosition, renderer, camera, target, options);
+                result = await this.renderPick(windowPosition, camera, target, options);
                 if (result && pickTarget !== PickTargetType.OBJECT) {
-                    result = this.raycastNearestFromWindow(windowPosition, renderer.domElement, camera, result.object, options);
+                    result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
                 }
                 break;
         }
@@ -1201,8 +1208,8 @@ class Picking extends Destroyable {
      * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
     pickFromNDC(ndc, camera, target, options = {}) {
-        const renderer = this.renderer;
-        const windowPosition = ndcToWindowPosition(ndc, renderer.domElement.clientWidth, renderer.domElement.clientHeight, true, scratchWindowPosition);
+        const canvas = this.canvas;
+        const windowPosition = ndcToWindowPosition(ndc, canvas.clientWidth, canvas.clientHeight, true, scratchWindowPosition);
         if (windowPosition)
             return this.pick(windowPosition, camera, target, options);
     }
