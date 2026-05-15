@@ -504,11 +504,6 @@ class Picking extends Destroyable {
          * @default true 
         */
         this.ignoreInvisible = true;
-        /**
-         * 自定义不可拾取检查函数，接受一个Object3D对象作为参数，返回一个布尔值，指示该对象是否应该被视为不可拾取。
-         * @type {Function}
-        */
-        this.checkIgnore = undefined;
 
         if (this.isWebGLRenderer) {
             // 兼容WebGLRenderer的isWebGLRenderTarget属性检查
@@ -727,14 +722,14 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Array<PickedResult>} 返回与射线相交的结果对象数组，按照距离从近到远排序，详见{@link Picking.PickedResult}，如果没有相交对象，则返回空数组
     */
     raycast(target, options = {}) {
         this.raycaster.near = options.near ?? 0;
         this.raycaster.far = options.far ?? Infinity;
         const ignoreInvisible = options.ignoreInvisible ?? this.ignoreInvisible;
-        const checkIgnore = options.checkIgnore ?? this.checkIgnore;
+        const checkIgnore = options.checkIgnore;
         const intersects = [];
         if (Array.isArray(target))
             intersectObjects(target, this.raycaster, intersects, options.recursive, ignoreInvisible, checkIgnore);
@@ -755,7 +750,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
     */
     raycastNearest(target, options = {}) {
@@ -773,7 +768,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Array<PickedResult>} 返回与射线相交的结果对象数组，按照距离从近到远排序，详见{@link Picking.PickedResult}，如果没有相交对象，则返回空数组
     */
     raycastFromRay(ray, target, options = {}) {
@@ -790,7 +785,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
     */
     raycastNearestFromRay(ray, target, options) {
@@ -809,7 +804,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
     */
     raycastFromDirection(origin, direction, target, options) {
@@ -827,7 +822,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
     */
     raycastNearestFromDirection(origin, direction, target, options) {
@@ -846,7 +841,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Array<PickedResult>} 返回与射线相交的结果对象数组，按照距离从近到远排序，详见{@link Picking.PickedResult}，如果没有相交对象，则返回空数组
      */
     raycastFromCamera(ndc, camera, target, options = {}) {
@@ -864,7 +859,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
      */
     raycastNearestFromCamera(ndc, camera, target, options) {
@@ -883,7 +878,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Array<PickedResult>} 返回与射线相交的结果对象数组，按照距离从近到远排序，详见{@link Picking.PickedResult}，如果没有相交对象，则返回空数组
     */
     raycastFromWindow(windowPosition, canvas, camera, target, options) {
@@ -901,7 +896,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
     */
     raycastNearestFromWindow(windowPosition, canvas, camera, target, options) {
@@ -917,7 +912,7 @@ class Picking extends Destroyable {
      * @param {object} [options] - 配置参数
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Array<PickedResult>} 返回与射线相交的结果对象数组，按照距离从近到远排序，详见{@link Picking.PickedResult}，如果没有相交对象，则返回空数组
     */
     raycastFromPoints(from, to, target, options = {}) {
@@ -934,7 +929,7 @@ class Picking extends Destroyable {
      * @param {object} [options] - 配置参数
      * @param {boolean} [options.recursive] - 是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 返回与射线相交最近的结果对象，如果没有相交则返回undefined，详见{@link Picking.PickedResult}
     */
     raycastNearestFromPoints(from, to, target, options) {
@@ -951,13 +946,13 @@ class Picking extends Destroyable {
      * @param {RenderTarget} [depthRenderTarget] - 深度拾取渲染目标
      * @param {object} [options] - 配置参数
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @private
     */
     renderScene(renderer, camera, target, colorRenderTarget, depthRenderTarget, options = {}) {
         const { pickingMaterials, originalParents, originalMaterials, originalVisibles, originalFrustumCulleds, depthMaterial } = this;
         const ignoreInvisible = options.ignoreInvisible ?? this.ignoreInvisible;
-        const checkIgnore = options.checkIgnore ?? this.checkIgnore;
+        const checkIgnore = options.checkIgnore;
         const hasCheckIgnore = (typeof checkIgnore === 'function');
 
         let scene = null;
@@ -1056,7 +1051,7 @@ class Picking extends Destroyable {
      * @param {object} [options] - 配置参数
      * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Promise<{object:Object3D,point:Vector3}|undefined>} 异步返回拾取结果，包含拾取到的对象与位置点，未拾取到则返回undefined。
      * @private
     */
@@ -1172,7 +1167,7 @@ class Picking extends Destroyable {
      * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
      * @param {boolean} [options.recursive] - 射线检测是否递归检测子对象，默认true
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用{@link Picking#checkIgnore}参数
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
     async pick(windowPosition, camera, target, options) {
