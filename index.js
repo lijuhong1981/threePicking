@@ -588,10 +588,11 @@ class Picking extends Destroyable {
     /**
      * 确保拾取结果函数，用于确保拾取结果对象的属性完整，可由用户自定义。
      * @param {PickedResult} result - 拾取结果对象
+     * @param {object} options - 配置参数，参见{@link Picking#raycast}
      * @return {PickedResult} 返回拾取结果对象
      * @private
     */
-    ensurePickedResult(result) {
+    ensurePickedResult(result, options) {
         if (result) {
             if (!result.position && result.point)
                 result.position = result.point;
@@ -741,7 +742,7 @@ class Picking extends Destroyable {
             intersectObject(target, this.raycaster, intersects, options.recursive, ignoreInvisible, checkIgnore);
         const result = [];
         intersects.forEach(intersect => {
-            const pickedResult = this.ensurePickedResult(intersect);
+            const pickedResult = this.ensurePickedResult(intersect, options);
             pickedResult && result.push(pickedResult);
         });
         return result;
@@ -1117,12 +1118,10 @@ class Picking extends Destroyable {
                     (ubyteBuffer[0] << 16) |
                     (ubyteBuffer[1] << 8) |
                     (ubyteBuffer[2] << 0);
-                // console.log('picked id:', id);
                 object = this.pickingObjects.get(id);
                 this._sessions.cacheKey = cacheKey;
                 this._sessions.cachedObject = object;
             }
-            // console.log('render pick object:', object);
         }
         if (pickPosition) {
             // read the depth render target pixel
@@ -1145,13 +1144,11 @@ class Picking extends Destroyable {
                 );
             if (floatBuffer[3] > 0) {
                 const depth = unpackRGBToDepth(floatBuffer);
-                // console.log('floatBuffer:', floatBuffer, 'depth:', depth);
                 if (depth !== 0) {
                     const ndc = getNDCInElement(renderer.domElement, windowPosition, scratchVector3);
                     ndc.z = depth * 2 - 1;
                     position = ndcToWorldCoords(ndc, camera);
                 }
-                // console.log('render pick point:', point);
             }
         }
         if (object || position) {
@@ -1179,7 +1176,6 @@ class Picking extends Destroyable {
      * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
     async pick(windowPosition, camera, target, options) {
-        // console.time('pickTime');
         const renderer = this.renderer;
         const pickingMode = options.mode ?? this.mode;
         let result = undefined;
@@ -1199,8 +1195,7 @@ class Picking extends Destroyable {
                 }
                 break;
         }
-        return this.ensurePickedResult(result);
-        // console.timeEnd('pickTime');
+        return this.ensurePickedResult(result, options);
     }
     /**
      * 根据标准化设备坐标拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
