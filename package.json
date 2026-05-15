@@ -36,7 +36,7 @@
   "dependencies": {
     "@lijuhong1981/jslibs": "^1.4.25",
     "@lijuhong1981/threeutils": "^1.0.1",
-    "three": "^0.171.0"
+    "three": ">=0.171.0"
   },
   "devDependencies": {
     "jsdoc-to-markdown": "^9.1.3"
