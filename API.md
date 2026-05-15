@@ -23,6 +23,7 @@
         * [.enableRandomColor](#Picking+enableRandomColor) : <code>boolean</code>
         * [.mode](#Picking+mode) : [<code>PickingMode</code>](#PickingMode)
         * [.ignoreInvisible](#Picking+ignoreInvisible) : <code>boolean</code>
+        * [.canvas](#Picking+canvas) : <code>HTMLCanvasElement</code>
         * [.debugColorPicking](#Picking+debugColorPicking) : <code>boolean</code>
         * [.debugDepthPicking](#Picking+debugDepthPicking) : <code>boolean</code>
         * [.registerObject(object)](#Picking+registerObject)
@@ -111,6 +112,13 @@
 
 **Kind**: instance property of [<code>Picking</code>](#Picking)  
 **Default**: <code>true</code>  
+<a name="Picking+canvas"></a>
+
+### picking.canvas : <code>HTMLCanvasElement</code>
+当前渲染器的窗口画布元素
+
+**Kind**: instance property of [<code>Picking</code>](#Picking)  
+**Read only**: true  
 <a name="Picking+debugColorPicking"></a>
 
 ### picking.debugColorPicking : <code>boolean</code>
