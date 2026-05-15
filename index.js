@@ -3,8 +3,9 @@ import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import getNDCInElement from '@lijuhong1981/jsmath/src/getNDCInElement.js';
 import ndcToWindowPosition from "@lijuhong1981/jsmath/src/ndcToWindowPosition.js";
 import { intersectObject, intersectObjects, traverse, traverseVisible } from "@lijuhong1981/threeutils";
-import { Camera, FloatType, InstancedMesh, LinearFilter, LineBasicMaterial, LineDashedMaterial, Material, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry, Points, Ray, Raycaster, RenderTarget, RGBAFormat, Scene, ShaderMaterial, Sprite, SpriteMaterial, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderer } from "three";
+import { Camera, FloatType, Line, LinearFilter, LineBasicMaterial, LineDashedMaterial, Material, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry, Points, Ray, Raycaster, RenderTarget, RGBAFormat, Scene, ShaderMaterial, Sprite, SpriteMaterial, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderer } from "three";
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { floor, fract, modelViewProjection, vec4 } from "three/tsl";
 import { Line2NodeMaterial, MeshBasicNodeMaterial, NodeMaterial, QuadMesh, WebGPURenderer } from "three/webgpu";
 
@@ -41,11 +42,11 @@ const PickTargetType = Object.freeze({
  * @property {Vector3} [point] - 射线检测返回的点在世界坐标系中的位置。
  * @property {Vector3} [position] - 拾取到的世界坐标位置。
  * @property {Object3D} [object] - 拾取到的对象实例。
- * @property {Object3D} [root] - 拾取对象所属的根对象实例。
+ * @property {Object3D} [root] - 拾取对象所属的根对象实例，即调用registerObject方法时注册的对象。
  * @property {Mesh} [mesh] - 拾取到的网格对象实例。
  * @property {Sprite} [sprite] - 拾取到的精灵对象实例。
  * @property {Points} [points] - 拾取到的点对象实例。
- * @property {Line} [line] - 拾取到的线对象实例。
+ * @property {Line|LineSegments2} [line] - 拾取到的线对象实例。
  * @memberof Picking
 */
 
@@ -342,45 +343,6 @@ function findRoot(object) {
         return findRoot(object.parent);
     return object;
 };
-/**
- * 确保拾取结果对象的属性完整。
- * @param {PickedResult} pickedResult - 拾取结果对象。
- * @returns {PickedResult} 返回拾取结果对象。
- * @ignore
-*/
-function ensurePickedResult(pickedResult) {
-    if (pickedResult) {
-        if (!pickedResult.position && pickedResult.point)
-            pickedResult.position = pickedResult.point;
-        if (pickedResult.object) {
-            if (!pickedResult.root)
-                pickedResult.root = findRoot(pickedResult.object);
-            if (!pickedResult.mesh && pickedResult.object.isMesh)
-                pickedResult.mesh = pickedResult.object;
-            if (!pickedResult.sprite && pickedResult.object.isSprite)
-                pickedResult.sprite = pickedResult.object;
-            if (!pickedResult.points && pickedResult.object.isPoints)
-                pickedResult.points = pickedResult.object;
-            if (!pickedResult.line && (pickedResult.object.isLine || pickedResult.object.isLineSegments2))
-                pickedResult.line = pickedResult.object;
-        }
-    }
-    return pickedResult;
-};
-/**
- * 确保拾取结果对象数组中的对象属性完整。
- * @param {Array<Intersection>} intersects - 拾取结果对象数组。
- * @param {Array} result - 拾取结果对象数组。
- * @returns {Array<PickedResult>} 返回拾取结果对象数组。
- * @ignore
-*/
-function ensureIntersects(intersects, result = []) {
-    intersects.forEach(intersect => {
-        const pickedResult = ensurePickedResult(intersect);
-        pickedResult && result.push(pickedResult);
-    });
-    return result;
-};
 
 /**
  * 拾取管理器，封装了射线检测、颜色拾取和深度拾取等功能，并对外提供统一的拾取接口。
@@ -624,6 +586,33 @@ class Picking extends Destroyable {
         };
     }
     /**
+     * 确保拾取结果函数，用于确保拾取结果对象的属性完整，可由用户自定义。
+     * @param {PickedResult} result - 拾取结果对象
+     * @return {PickedResult} 返回拾取结果对象
+     * @private
+    */
+    ensurePickedResult(result) {
+        if (result) {
+            if (!result.position && result.point)
+                result.position = result.point;
+            else if (!result.point && result.position)
+                result.point = result.position;
+            if (result.object) {
+                if (!result.root)
+                    result.root = findRoot(result.object);
+                if (!result.mesh && result.object.isMesh)
+                    result.mesh = result.object;
+                if (!result.sprite && result.object.isSprite)
+                    result.sprite = result.object;
+                if (!result.points && result.object.isPoints)
+                    result.points = result.object;
+                if (!result.line && (result.object.isLine || result.object.isLineSegments2))
+                    result.line = result.object;
+            }
+        }
+        return result;
+    }
+    /**
      * 是否显示颜色拾取场景至屏幕
      * @type {boolean}
     */
@@ -750,7 +739,12 @@ class Picking extends Destroyable {
             intersectObjects(target, this.raycaster, intersects, options.recursive, ignoreInvisible, checkIgnore);
         else
             intersectObject(target, this.raycaster, intersects, options.recursive, ignoreInvisible, checkIgnore);
-        return ensureIntersects(intersects);
+        const result = [];
+        intersects.forEach(intersect => {
+            const pickedResult = this.ensurePickedResult(intersect);
+            pickedResult && result.push(pickedResult);
+        });
+        return result;
     }
     /**
      * 射线检测某个目标对象，即CPU拾取，只返回最近的相交结果对象
@@ -1205,7 +1199,7 @@ class Picking extends Destroyable {
                 }
                 break;
         }
-        return ensurePickedResult(result);
+        return this.ensurePickedResult(result);
         // console.timeEnd('pickTime');
     }
     /**
