@@ -23,7 +23,6 @@
         * [.enableRandomColor](#Picking+enableRandomColor) : <code>boolean</code>
         * [.mode](#Picking+mode) : [<code>PickingMode</code>](#PickingMode)
         * [.ignoreInvisible](#Picking+ignoreInvisible) : <code>boolean</code>
-        * [.checkIgnore](#Picking+checkIgnore) : <code>function</code>
         * [.debugColorPicking](#Picking+debugColorPicking) : <code>boolean</code>
         * [.debugDepthPicking](#Picking+debugDepthPicking) : <code>boolean</code>
         * [.registerObject(object)](#Picking+registerObject)
@@ -112,12 +111,6 @@
 
 **Kind**: instance property of [<code>Picking</code>](#Picking)  
 **Default**: <code>true</code>  
-<a name="Picking+checkIgnore"></a>
-
-### picking.checkIgnore : <code>function</code>
-自定义不可拾取检查函数，接受一个Object3D对象作为参数，返回一个布尔值，指示该对象是否应该被视为不可拾取。
-
-**Kind**: instance property of [<code>Picking</code>](#Picking)  
 <a name="Picking+debugColorPicking"></a>
 
 ### picking.debugColorPicking : <code>boolean</code>
@@ -215,7 +208,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastNearest"></a>
 
@@ -233,7 +226,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastFromRay"></a>
 
@@ -252,7 +245,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastNearestFromRay"></a>
 
@@ -271,7 +264,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastFromDirection"></a>
 
@@ -291,7 +284,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastNearestFromDirection"></a>
 
@@ -311,7 +304,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastFromCamera"></a>
 
@@ -331,7 +324,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastNearestFromCamera"></a>
 
@@ -351,7 +344,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastFromWindow"></a>
 
@@ -372,7 +365,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastNearestFromWindow"></a>
 
@@ -393,7 +386,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastFromPoints"></a>
 
@@ -411,7 +404,7 @@
 | [options] | <code>object</code> | 配置参数 |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+raycastNearestFromPoints"></a>
 
@@ -429,7 +422,7 @@
 | [options] | <code>object</code> | 配置参数 |
 | [options.recursive] | <code>boolean</code> | 是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+pick"></a>
 
@@ -451,7 +444,7 @@
 | [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
 | [options.recursive] | <code>boolean</code> | 射线检测是否递归检测子对象，默认true |
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
-| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略，未指定则使用[checkIgnore](#Picking+checkIgnore)参数 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
 <a name="Picking+pickFromNDC"></a>
 
