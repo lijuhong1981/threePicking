@@ -576,8 +576,6 @@ class Picking extends Destroyable {
             floatBuffer: new Float32Array(4),
             debugColorPicking: false,
             debugDepthPicking: false,
-            cacheKey: '',
-            cachedObject: null,
         };
     }
     /**
@@ -662,7 +660,6 @@ class Picking extends Destroyable {
             }
         });
         object.isRoot = true;
-        this._sessions.cacheKey = '';
     }
     /**
      * 注销拾取对象
@@ -677,7 +674,6 @@ class Picking extends Destroyable {
                 this.pickingObjects.delete(pickId);
             }
         });
-        this._sessions.cacheKey = '';
     }
     /**
      * 注销所有拾取对象
@@ -1093,37 +1089,30 @@ class Picking extends Destroyable {
 
         let object = undefined, position = undefined;
         if (pickObject) {
-            const cacheKey = x + '&' + y;
-            if (this._sessions.cacheKey === cacheKey && this._sessions.cachedObject) {
-                object = this._sessions.cachedObject;
-            } else {
-                // read the color render target pixel
-                let ubyteBuffer = this._sessions.ubyteBuffer;
-                if (renderer.isWebGLRenderer)
-                    renderer.readRenderTargetPixels(
-                        pickingColorRenderTarget,
-                        0, // x
-                        0, // y
-                        1, // width
-                        1, // height
-                        ubyteBuffer);
-                else if (renderer.isWebGPURenderer)
-                    ubyteBuffer = await renderer.readRenderTargetPixelsAsync(
-                        pickingColorRenderTarget,
-                        0, // x
-                        0, // y
-                        1, // width
-                        1, // height);
-                    );
-                // decode the id
-                const id =
-                    (ubyteBuffer[0] << 16) |
-                    (ubyteBuffer[1] << 8) |
-                    (ubyteBuffer[2] << 0);
-                object = this.pickingObjects.get(id);
-                this._sessions.cacheKey = cacheKey;
-                this._sessions.cachedObject = object;
-            }
+            // read the color render target pixel
+            let ubyteBuffer = this._sessions.ubyteBuffer;
+            if (renderer.isWebGLRenderer)
+                renderer.readRenderTargetPixels(
+                    pickingColorRenderTarget,
+                    0, // x
+                    0, // y
+                    1, // width
+                    1, // height
+                    ubyteBuffer);
+            else if (renderer.isWebGPURenderer)
+                ubyteBuffer = await renderer.readRenderTargetPixelsAsync(
+                    pickingColorRenderTarget,
+                    0, // x
+                    0, // y
+                    1, // width
+                    1, // height);
+                );
+            // decode the id
+            const id =
+                (ubyteBuffer[0] << 16) |
+                (ubyteBuffer[1] << 8) |
+                (ubyteBuffer[2] << 0);
+            object = this.pickingObjects.get(id);
         }
         if (pickPosition) {
             // read the depth render target pixel
