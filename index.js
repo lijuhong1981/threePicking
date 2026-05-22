@@ -2,7 +2,7 @@ import Check from "@lijuhong1981/jscheck/src/Check.js";
 import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import getNDCInElement from '@lijuhong1981/jsmath/src/getNDCInElement.js';
 import ndcToWindowPosition from "@lijuhong1981/jsmath/src/ndcToWindowPosition.js";
-import { intersectObject, intersectObjects, traverse, traverseVisible } from "@lijuhong1981/threeutils";
+import { intersectObject, intersectObjects, traverse, traverseVisible } from "@lijuhong1981/three.utils";
 import { Camera, FloatType, Line, LinearFilter, LineBasicMaterial, LineDashedMaterial, Material, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry, Points, Ray, Raycaster, RenderTarget, RGBAFormat, Scene, ShaderMaterial, Sprite, SpriteMaterial, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderer } from "three";
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
