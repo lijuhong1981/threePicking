@@ -1,6 +1,6 @@
 {
   "name": "@lijuhong1981/picking",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "",
   "type": "module",
   "module": "index.js",
@@ -35,7 +35,7 @@
   "homepage": "https://github.com/lijuhong1981/threePicking#readme",
   "dependencies": {
     "@lijuhong1981/jslibs": "^1.4.25",
-    "@lijuhong1981/threeutils": "^1.0.1",
+    "@lijuhong1981/three.utils": "^1.0.3",
     "three": ">=0.171.0"
   },
   "devDependencies": {
