@@ -38,6 +38,7 @@ const PickTargetType = Object.freeze({
     POSITION: 'position',
 });
 /**
+ * 拾取结果对象类型定义
  * @typedef {object} PickedResult
  * @property {Vector3} [point] - 射线检测返回的点在世界坐标系中的位置。
  * @property {Vector3} [position] - 拾取到的世界坐标位置。
@@ -49,6 +50,13 @@ const PickTargetType = Object.freeze({
  * @property {Line|LineSegments2} [line] - 拾取到的线对象实例。
  * @memberof Picking
 */
+/**
+ * 渲染拾取结果对象类型定义
+ * @typedef {object} RenderPickResult
+ * @property {Object3D} [object] - 拾取到的对象实例。
+ * @property {Vector3} [point] - 拾取到的点在世界坐标系中的位置。
+ * @ignore
+ */
 
 // #region 深度拾取相关代码，参考了three.js的MeshDepthMaterial实现，并针对拾取场景进行了优化，确保在拾取时能正确编码和解码深度值。
 // 定义常量
@@ -1047,27 +1055,20 @@ class Picking extends Destroyable {
         }
     }
     /**
-     * 渲染拾取，即GPU拾取，先将场景渲染至RenderTarget后读取像素进行拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
-     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
+     * 根据窗口位置渲染拾取场景，只渲染窗口位置对应的像素点，包含颜色与深度
+     * @param {WebGLRenderer|WebGPURenderer} renderer - 渲染器实例
+     * @param {Vector2} windowPosition - 窗口坐标位置，格式：{x: number, y: number} 
      * @param {Camera} camera - 相机
      * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标，可以是场景、对象或对象数组
+     * @param {RenderTarget} [colorRenderTarget] - 颜色拾取渲染目标
+     * @param {RenderTarget} [depthRenderTarget] - 深度拾取渲染目标
      * @param {object} [options] - 配置参数
      * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
      * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
      * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
-     * @returns {Promise<{object:Object3D,point:Vector3}|undefined>} 异步返回拾取结果，包含拾取到的对象与位置点，未拾取到则返回undefined。
      * @private
     */
-    async renderPick(windowPosition, camera, target, options = {}) {
-        const { renderer, pickingColorRenderTarget, pickingDepthRenderTarget } = this;
-        const pickTarget = options.pickTarget ?? PickTargetType.ALL;
-        const pickObject = pickTarget === PickTargetType.POSITION ? false : true;
-        const pickPosition = pickTarget === PickTargetType.OBJECT ? false : true;
-
-        // 如果是WebGPU渲染器且未初始化，则初始化
-        if (renderer.isWebGPURenderer && !renderer.hasInitialized())
-            await renderer.init();
-
+    renderOnWindowPosition(renderer, windowPosition, camera, target, colorRenderTarget, depthRenderTarget, options = {}) {
         // set the view offset to represent just a single pixel under the canvasPosition
         // const pixelRatio = renderer.getPixelRatio();
         // const x = windowPosition.x * pixelRatio;
@@ -1083,30 +1084,110 @@ class Picking extends Destroyable {
             1,                          // rect height
         );
         // render to picking render target
-        this.renderScene(renderer, camera, target, (pickObject ? pickingColorRenderTarget : undefined), (pickPosition ? pickingDepthRenderTarget : undefined), options);
+        this.renderScene(renderer, camera, target, colorRenderTarget, depthRenderTarget, options);
         // clear the view offset so rendering returns to normal
         camera.clearViewOffset();
+    }
+    /**
+     * @param {WebGLRenderer} renderer - 渲染器实例
+     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
+     * @param {Camera} camera - 相机
+     * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标，可以是场景、对象或对象数组
+     * @param {object} [options] - 配置参数
+     * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
+     * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
+     * @returns {RenderPickResult|undefined} 同步返回拾取结果，包含拾取到的对象与位置点，未拾取到则返回undefined。
+     * @private
+    */
+    glRenderPick(renderer, windowPosition, camera, target, options = {}) {
+        const { pickingColorRenderTarget, pickingDepthRenderTarget } = this;
+        const pickTarget = options.pickTarget ?? PickTargetType.ALL;
+        const pickObject = pickTarget === PickTargetType.POSITION ? false : true;
+        const pickPosition = pickTarget === PickTargetType.OBJECT ? false : true;
+
+        this.renderOnWindowPosition(renderer, windowPosition, camera, target, (pickObject ? pickingColorRenderTarget : undefined), (pickPosition ? pickingDepthRenderTarget : undefined), options);
 
         let object = undefined, position = undefined;
         if (pickObject) {
             // read the color render target pixel
-            let ubyteBuffer = this._sessions.ubyteBuffer;
-            if (renderer.isWebGLRenderer)
-                renderer.readRenderTargetPixels(
-                    pickingColorRenderTarget,
-                    0, // x
-                    0, // y
-                    1, // width
-                    1, // height
-                    ubyteBuffer);
-            else if (renderer.isWebGPURenderer)
-                ubyteBuffer = await renderer.readRenderTargetPixelsAsync(
-                    pickingColorRenderTarget,
-                    0, // x
-                    0, // y
-                    1, // width
-                    1, // height);
-                );
+            const ubyteBuffer = this._sessions.ubyteBuffer;
+            renderer.readRenderTargetPixels(
+                pickingColorRenderTarget,
+                0, // x
+                0, // y
+                1, // width
+                1, // height
+                ubyteBuffer);
+            // decode the id
+            const id =
+                (ubyteBuffer[0] << 16) |
+                (ubyteBuffer[1] << 8) |
+                (ubyteBuffer[2] << 0);
+            object = this.pickingObjects.get(id);
+        }
+        if (pickPosition) {
+            // read the depth render target pixel
+            const floatBuffer = this._sessions.floatBuffer;
+            renderer.readRenderTargetPixels(
+                pickingDepthRenderTarget,
+                0, // x
+                0, // y
+                1, // width
+                1, // height
+                floatBuffer);
+            if (floatBuffer[3] > 0) {
+                const depth = unpackRGBToDepth(floatBuffer);
+                if (depth !== 0) {
+                    const ndc = getNDCInElement(renderer.domElement, windowPosition, scratchVector3);
+                    ndc.z = depth * 2 - 1;
+                    position = ndcToWorldCoords(ndc, camera);
+                }
+            }
+        }
+        if (object || position) {
+            const result = {};
+            if (object)
+                result.object = object;
+            if (position)
+                result.position = result.point = position;
+            return result;
+        }
+    }
+    /**
+     * @param {WebGPURenderer} renderer - 渲染器实例
+     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
+     * @param {Camera} camera - 相机
+     * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标，可以是场景、对象或对象数组
+     * @param {object} [options] - 配置参数
+     * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
+     * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
+     * @returns {Promise<RenderPickResult|undefined>} 异步返回拾取结果，包含拾取到的对象与位置点，未拾取到则返回undefined。
+     * @private
+    */
+    async gpuRenderPick(renderer, windowPosition, camera, target, options = {}) {
+        // WebGPU渲染器未初始化，则初始化
+        if (!renderer.hasInitialized())
+            await renderer.init();
+
+        const { pickingColorRenderTarget, pickingDepthRenderTarget } = this;
+        const pickTarget = options.pickTarget ?? PickTargetType.ALL;
+        const pickObject = pickTarget === PickTargetType.POSITION ? false : true;
+        const pickPosition = pickTarget === PickTargetType.OBJECT ? false : true;
+
+        this.renderOnWindowPosition(renderer, windowPosition, camera, target, (pickObject ? pickingColorRenderTarget : undefined), (pickPosition ? pickingDepthRenderTarget : undefined), options);
+
+        let object = undefined, position = undefined;
+        if (pickObject) {
+            // read the color render target pixel
+            const ubyteBuffer = await renderer.readRenderTargetPixelsAsync(
+                pickingColorRenderTarget,
+                0, // x
+                0, // y
+                1, // width
+                1, // height);
+            );
             // decode the id
             const id =
                 (ubyteBuffer[0] << 16) |
@@ -1152,7 +1233,65 @@ class Picking extends Destroyable {
         }
     }
     /**
-     * 根据窗口位置拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
+     * 渲染拾取，即GPU拾取，先将场景渲染至RenderTarget后读取像素进行拾取，WebGL同步返回，WebGPU异步返回拾取结果。
+     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
+     * @param {Camera} camera - 相机
+     * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标，可以是场景、对象或对象数组
+     * @param {object} [options] - 配置参数
+     * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
+     * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
+     * @returns {RenderPickResult|Promise<RenderPickResult>} 拾取结果，WebGL同步返回，WebGPU异步返回，详见{@link Picking.PickedResult}。
+     * @private
+    */
+    renderPick(windowPosition, camera, target, options = {}) {
+        const renderer = this.renderer;
+        if (renderer.isWebGLRenderer)
+            return this.glRenderPick(renderer, windowPosition, camera, target, options);
+        else if (renderer.isWebGPURenderer)
+            return this.gpuRenderPick(renderer, windowPosition, camera, target, options);
+        else
+            throw new Error("renderer must be WebGLRenderer or WebGPURenderer.");
+    }
+    /**
+     * @param {WebGLRenderer} renderer - 渲染器实例 
+     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
+     * @param {Camera} camera - 相机对象
+     * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标对象，可以是场景、对象或对象数组
+     * @param {object} [options] - 配置参数
+     * @param {PickingMode} [options.mode] - 拾取模式，未指定则使用{@link Picking#mode}属性
+     * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
+     * @param {number} [options.near] - 射线检测的最近距离，默认0
+     * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
+     * @param {boolean} [options.recursive] - 射线检测是否递归检测子对象，默认true
+     * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
+     * @returns {PickedResult|undefined} 同步返回拾取结果对象，详见{@link Picking.PickedResult}。
+    */
+    glPick(renderer, windowPosition, camera, target, options) {
+        const canvas = this.canvas;
+        const pickingMode = options.mode ?? this.mode;
+        let result = undefined;
+        switch (pickingMode) {
+            case PickingMode.FAST:
+                result = this.glRenderPick(renderer, windowPosition, camera, target, options);
+                break;
+            case PickingMode.PRECISION:
+                result = this.raycastNearestFromWindow(windowPosition, canvas, camera, target, options);
+                break;
+            case PickingMode.NORMAL:
+                const pickTarget = options.pickTarget ?? PickTargetType.ALL;
+                options.pickTarget = PickTargetType.OBJECT;
+                result = this.glRenderPick(renderer, windowPosition, camera, target, options);
+                if (result && pickTarget !== PickTargetType.OBJECT) {
+                    result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
+                }
+                break;
+        }
+        return this.ensurePickedResult(result, options);
+    }
+    /**
+     * @param {WebGPURenderer} renderer - 渲染器实例 
      * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
      * @param {Camera} camera - 相机对象
      * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标对象，可以是场景、对象或对象数组
@@ -1166,13 +1305,13 @@ class Picking extends Destroyable {
      * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
-    async pick(windowPosition, camera, target, options) {
+    async gpuPick(renderer, windowPosition, camera, target, options) {
         const canvas = this.canvas;
         const pickingMode = options.mode ?? this.mode;
         let result = undefined;
         switch (pickingMode) {
             case PickingMode.FAST:
-                result = await this.renderPick(windowPosition, camera, target, options);
+                result = await this.gpuRenderPick(renderer, windowPosition, camera, target, options);
                 break;
             case PickingMode.PRECISION:
                 result = this.raycastNearestFromWindow(windowPosition, canvas, camera, target, options);
@@ -1180,7 +1319,7 @@ class Picking extends Destroyable {
             case PickingMode.NORMAL:
                 const pickTarget = options.pickTarget ?? PickTargetType.ALL;
                 options.pickTarget = PickTargetType.OBJECT;
-                result = await this.renderPick(windowPosition, camera, target, options);
+                result = await this.gpuRenderPick(renderer, windowPosition, camera, target, options);
                 if (result && pickTarget !== PickTargetType.OBJECT) {
                     result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
                 }
@@ -1189,12 +1328,36 @@ class Picking extends Destroyable {
         return this.ensurePickedResult(result, options);
     }
     /**
+     * 根据窗口位置拾取，WebGL同步返回，WebGPU异步返回拾取结果。
+     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
+     * @param {Camera} camera - 相机对象
+     * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标对象，可以是场景、对象或对象数组
+     * @param {object} [options] - 配置参数
+     * @param {PickingMode} [options.mode] - 拾取模式，未指定则使用{@link Picking#mode}属性
+     * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
+     * @param {number} [options.near] - 射线检测的最近距离，默认0
+     * @param {number} [options.far] - 射线检测的最远距离，默认Infinity
+     * @param {boolean} [options.recursive] - 射线检测是否递归检测子对象，默认true
+     * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
+     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
+     * @returns {PickedResult|Promise<PickedResult>} 拾取结果，WebGL同步返回，WebGPU异步返回，详见{@link Picking.PickedResult}。
+    */
+    pick(windowPosition, camera, target, options) {
+        const renderer = this.renderer;
+        if (renderer.isWebGLRenderer)
+            return this.glPick(renderer, windowPosition, camera, target, options);
+        else if (renderer.isWebGPURenderer)
+            return this.gpuPick(renderer, windowPosition, camera, target, options);
+        else
+            throw new Error("renderer must be WebGLRenderer or WebGPURenderer.");
+    }
+    /**
      * 根据标准化设备坐标拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
      * @param {Vector2} ndc - 标准化设备坐标，格式：{x: number, y: number}，范围[-1, 1]
      * @param {Camera} camera - 相机对象
      * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标对象，可以是场景、对象或对象数组
      * @param {object} [options] - 配置参数，同{@link Picking#pick}方法的options参数
-     * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
+     * @returns {PickedResult|Promise<PickedResult>} 拾取结果，WebGL同步返回，WebGPU异步返回，详见{@link Picking.PickedResult}。
     */
     pickFromNDC(ndc, camera, target, options = {}) {
         const canvas = this.canvas;
