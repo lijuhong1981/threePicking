@@ -44,8 +44,10 @@
         * [.raycastNearestFromWindow(windowPosition, canvas, camera, target, [options])](#Picking+raycastNearestFromWindow) ⇒ <code>PickedResult</code> \| <code>undefined</code>
         * [.raycastFromPoints(from, to, target, [options])](#Picking+raycastFromPoints) ⇒ <code>Array.&lt;PickedResult&gt;</code>
         * [.raycastNearestFromPoints(from, to, target, [options])](#Picking+raycastNearestFromPoints) ⇒ <code>PickedResult</code> \| <code>undefined</code>
-        * [.pick(windowPosition, camera, target, [options])](#Picking+pick) ⇒ <code>Promise.&lt;(PickedResult\|undefined)&gt;</code>
-        * [.pickFromNDC(ndc, camera, target, [options])](#Picking+pickFromNDC) ⇒ <code>Promise.&lt;(PickedResult\|undefined)&gt;</code>
+        * [.glPick(renderer, windowPosition, camera, target, [options])](#Picking+glPick) ⇒ <code>PickedResult</code> \| <code>undefined</code>
+        * [.gpuPick(renderer, windowPosition, camera, target, [options])](#Picking+gpuPick) ⇒ <code>Promise.&lt;(PickedResult\|undefined)&gt;</code>
+        * [.pick(windowPosition, camera, target, [options])](#Picking+pick) ⇒ <code>PickedResult</code> \| <code>Promise.&lt;PickedResult&gt;</code>
+        * [.pickFromNDC(ndc, camera, target, [options])](#Picking+pickFromNDC) ⇒ <code>PickedResult</code> \| <code>Promise.&lt;PickedResult&gt;</code>
         * [.getWindowColorRenderTarget(camera, target, [options])](#Picking+getWindowColorRenderTarget) ⇒ <code>RenderTarget</code>
         * [.getWindowDepthRenderTarget(camera, target, [options])](#Picking+getWindowDepthRenderTarget) ⇒ <code>RenderTarget</code>
     * _static_
@@ -432,13 +434,55 @@
 | [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
 | [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
 
-<a name="Picking+pick"></a>
+<a name="Picking+glPick"></a>
 
-### picking.pick(windowPosition, camera, target, [options]) ⇒ <code>Promise.&lt;(PickedResult\|undefined)&gt;</code>
-根据窗口位置拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
+### picking.glPick(renderer, windowPosition, camera, target, [options]) ⇒ <code>PickedResult</code> \| <code>undefined</code>
+**Kind**: instance method of [<code>Picking</code>](#Picking)  
+**Returns**: <code>PickedResult</code> \| <code>undefined</code> - 同步返回拾取结果对象，详见[PickedResult](#Picking.PickedResult)。  
 
+| Param | Type | Description |
+| --- | --- | --- |
+| renderer | <code>WebGLRenderer</code> | 渲染器实例 |
+| windowPosition | <code>Vector2</code> | Window coordinates to perform picking on，格式：{x: number, y: number} |
+| camera | <code>Camera</code> | 相机对象 |
+| target | <code>Scene</code> \| <code>Object3D</code> \| <code>Array.&lt;Object3D&gt;</code> | 拾取目标对象，可以是场景、对象或对象数组 |
+| [options] | <code>object</code> | 配置参数 |
+| [options.mode] | [<code>PickingMode</code>](#PickingMode) | 拾取模式，未指定则使用[mode](#Picking+mode)属性 |
+| [options.pickTarget] | [<code>PickTargetType</code>](#PickTargetType) | 指定拾取的目标类型，默认PickTargetType.ALL |
+| [options.near] | <code>number</code> | 射线检测的最近距离，默认0 |
+| [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
+| [options.recursive] | <code>boolean</code> | 射线检测是否递归检测子对象，默认true |
+| [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
+
+<a name="Picking+gpuPick"></a>
+
+### picking.gpuPick(renderer, windowPosition, camera, target, [options]) ⇒ <code>Promise.&lt;(PickedResult\|undefined)&gt;</code>
 **Kind**: instance method of [<code>Picking</code>](#Picking)  
 **Returns**: <code>Promise.&lt;(PickedResult\|undefined)&gt;</code> - 异步返回拾取结果对象，详见[PickedResult](#Picking.PickedResult)。  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| renderer | <code>WebGPURenderer</code> | 渲染器实例 |
+| windowPosition | <code>Vector2</code> | Window coordinates to perform picking on，格式：{x: number, y: number} |
+| camera | <code>Camera</code> | 相机对象 |
+| target | <code>Scene</code> \| <code>Object3D</code> \| <code>Array.&lt;Object3D&gt;</code> | 拾取目标对象，可以是场景、对象或对象数组 |
+| [options] | <code>object</code> | 配置参数 |
+| [options.mode] | [<code>PickingMode</code>](#PickingMode) | 拾取模式，未指定则使用[mode](#Picking+mode)属性 |
+| [options.pickTarget] | [<code>PickTargetType</code>](#PickTargetType) | 指定拾取的目标类型，默认PickTargetType.ALL |
+| [options.near] | <code>number</code> | 射线检测的最近距离，默认0 |
+| [options.far] | <code>number</code> | 射线检测的最远距离，默认Infinity |
+| [options.recursive] | <code>boolean</code> | 射线检测是否递归检测子对象，默认true |
+| [options.ignoreInvisible] | <code>boolean</code> | 是否忽略不可见对象，未指定则使用[ignoreInvisible](#Picking+ignoreInvisible)属性 |
+| [options.checkIgnore] | <code>function</code> | 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略 |
+
+<a name="Picking+pick"></a>
+
+### picking.pick(windowPosition, camera, target, [options]) ⇒ <code>PickedResult</code> \| <code>Promise.&lt;PickedResult&gt;</code>
+根据窗口位置拾取，WebGL同步返回，WebGPU异步返回拾取结果。
+
+**Kind**: instance method of [<code>Picking</code>](#Picking)  
+**Returns**: <code>PickedResult</code> \| <code>Promise.&lt;PickedResult&gt;</code> - 拾取结果，WebGL同步返回，WebGPU异步返回，详见[PickedResult](#Picking.PickedResult)。  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -456,11 +500,11 @@
 
 <a name="Picking+pickFromNDC"></a>
 
-### picking.pickFromNDC(ndc, camera, target, [options]) ⇒ <code>Promise.&lt;(PickedResult\|undefined)&gt;</code>
+### picking.pickFromNDC(ndc, camera, target, [options]) ⇒ <code>PickedResult</code> \| <code>Promise.&lt;PickedResult&gt;</code>
 根据标准化设备坐标拾取，因WebGPU的设计限制，无法同步读取像素，因此使用异步方法，异步返回拾取结果。
 
 **Kind**: instance method of [<code>Picking</code>](#Picking)  
-**Returns**: <code>Promise.&lt;(PickedResult\|undefined)&gt;</code> - 异步返回拾取结果对象，详见[PickedResult](#Picking.PickedResult)。  
+**Returns**: <code>PickedResult</code> \| <code>Promise.&lt;PickedResult&gt;</code> - 拾取结果，WebGL同步返回，WebGPU异步返回，详见[PickedResult](#Picking.PickedResult)。  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -512,6 +556,8 @@
 <a name="Picking.PickedResult"></a>
 
 ### Picking.PickedResult : <code>object</code>
+拾取结果对象类型定义
+
 **Kind**: static typedef of [<code>Picking</code>](#Picking)  
 **Properties**
 
