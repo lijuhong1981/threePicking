@@ -1,10 +1,15 @@
 {
   "name": "@lijuhong1981/picking",
-  "version": "1.0.12",
+  "version": "1.1.0",
   "description": "",
   "type": "module",
   "module": "index.js",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "README.md",
+    "API.md"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -38,8 +43,9 @@
   },
   "homepage": "https://github.com/lijuhong1981/threePicking#readme",
   "dependencies": {
-    "@lijuhong1981/jslibs": "^1.4.25",
-    "@lijuhong1981/three.utils": "^1.0.3",
+    "@lijuhong1981/jslibs": "^1.4.28",
+    "@lijuhong1981/three.instancedsprite": "^2.2.0",
+    "@lijuhong1981/three.utils": "^1.0.4",
     "three": ">=0.171.0"
   },
   "devDependencies": {

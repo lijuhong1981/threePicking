@@ -569,6 +569,7 @@
 | [root] | <code>Object3D</code> | 拾取对象所属的根对象实例，即调用registerObject方法时注册的对象。 |
 | [mesh] | <code>Mesh</code> | 拾取到的网格对象实例。 |
 | [sprite] | <code>Sprite</code> | 拾取到的精灵对象实例。 |
+| [instancedSprite] | <code>InstancedSprite</code> | 拾取到的实例化精灵对象实例。 |
 | [points] | <code>Points</code> | 拾取到的点对象实例。 |
 | [line] | <code>Line</code> \| <code>LineSegments2</code> | 拾取到的线对象实例。 |
 

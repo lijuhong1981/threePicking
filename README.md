@@ -5,6 +5,31 @@
 
 支持WebGLRenderer与WebGPURenderer。
 
+## 支持的对象类型
+
+- `Mesh` / `Group`（含其子对象）
+- `Sprite`
+- `Line` / `LineSegments2`
+- `Points`
+- `InstancedSpriteCollection`（[@lijuhong1981/three.instancedsprite](https://www.npmjs.com/package/@lijuhong1981/three.instancedsprite)，可拾取到具体某个实例）
+
+### InstancedSprite 拾取
+
+```js
+import { InstancedSpriteCollection } from "@lijuhong1981/three.instancedsprite";
+
+const collection = new InstancedSpriteCollection();
+scene.add(collection);
+picking.registerObject(collection); // 注册集合，拾取到具体某个实例
+
+// 拾取
+const result = await picking.pick(windowPosition, camera, scene);
+if (result && result.instancedSprite) {
+    console.log('拾取到的实例：', result.instancedSprite);
+    console.log('所属集合：', result.root); // InstancedSpriteCollection
+}
+```
+
 ## 安装
 
 ```bash

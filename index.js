@@ -3,7 +3,7 @@ import Destroyable from "@lijuhong1981/jsdestroy/src/Destroyable.js";
 import getNDCInElement from '@lijuhong1981/jsmath/src/getNDCInElement.js';
 import ndcToWindowPosition from "@lijuhong1981/jsmath/src/ndcToWindowPosition.js";
 import { intersectObject, intersectObjects, traverse, traverseVisible } from "@lijuhong1981/three.utils";
-import { Camera, FloatType, Line, LinearFilter, LineBasicMaterial, LineDashedMaterial, Material, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry, Points, Ray, Raycaster, RenderTarget, RGBAFormat, Scene, ShaderMaterial, Sprite, SpriteMaterial, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderer } from "three";
+import { Camera, Color, FloatType, Line, LinearFilter, LinearSRGBColorSpace, LineBasicMaterial, LineDashedMaterial, Material, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry, Points, PointsMaterial, Ray, Raycaster, RenderTarget, RGBAFormat, Scene, ShaderMaterial, Sprite, SpriteMaterial, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderer } from "three";
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { floor, fract, modelViewProjection, vec4 } from "three/tsl";
@@ -46,6 +46,7 @@ const PickTargetType = Object.freeze({
  * @property {Object3D} [root] - 拾取对象所属的根对象实例，即调用registerObject方法时注册的对象。
  * @property {Mesh} [mesh] - 拾取到的网格对象实例。
  * @property {Sprite} [sprite] - 拾取到的精灵对象实例。
+ * @property {InstancedSprite} [instancedSprite] - 拾取到的实例化精灵对象实例。
  * @property {Points} [points] - 拾取到的点对象实例。
  * @property {Line|LineSegments2} [line] - 拾取到的线对象实例。
  * @memberof Picking
@@ -93,12 +94,24 @@ function unpackRGBToDepth(floatBuffer) {
  * @ignore
 */
 const depthMaterial = new ShaderMaterial({
+    uniforms: {
+        size: { value: 1.0 },
+        scale: { value: 1.0 },
+        sizeAttenuation: { value: 0.0 },
+    },
     vertexShader: `
-          varying vec4 mvPosition;
+          uniform float size;
+          uniform float scale;
+          uniform float sizeAttenuation;
           varying vec2 vHighPrecisionZW;
           void main() {
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
             vHighPrecisionZW = gl_Position.zw;
+            gl_PointSize = size;
+            if (sizeAttenuation > 0.5) {
+              gl_PointSize *= scale / -mvPosition.z;
+            }
           }
         `,
     fragmentShader: `
@@ -220,6 +233,9 @@ function getRandomHexColor(pickingObjects) {
  * @ignore
 */
 function createPickMaterial(object, hexColor) {
+    // 颜色以线性色彩空间存储，确保渲染目标（线性工作空间）输出时字节与拾取ID一致，
+    // 避免 three.js 默认 sRGB→线性 转换导致读取像素颜色与注册ID不匹配。
+    hexColor = new Color().setHex(hexColor, LinearSRGBColorSpace);
     if (object.isSprite)
         return new SpriteMaterial({
             color: hexColor,
@@ -255,6 +271,14 @@ function createPickMaterial(object, hexColor) {
         });
     else if (object.material.isLineMaterial)
         return new LineMaterial({
+            color: hexColor,
+            transparent: false,
+            vertexColors: false,
+            fog: false,
+            toneMapped: false,
+        });
+    else if (object.isPoints)
+        return new PointsMaterial({
             color: hexColor,
             transparent: false,
             vertexColors: false,
@@ -335,6 +359,14 @@ function replaceToPickMaterial(object, pickMaterial, originalMaterials, original
         // Line 的包围球易被剔除。必须始终临时关闭视锥剔除，确保 Line 参与渲染。
         originalFrustumCulleds.set(object, object.frustumCulled);
         object.frustumCulled = false;
+    } else if (object.isPoints) {
+        pickMaterial.size = object.material.size;
+        pickMaterial.sizeAttenuation = object.material.sizeAttenuation;
+        pickMaterial.depthTest = object.material.depthTest;
+        // renderPick 使用 setViewOffset 只渲染 1 像素，视锥极窄，
+        // Points 的包围球易被剔除。临时关闭视锥剔除，确保 Points 参与渲染。
+        originalFrustumCulleds.set(object, object.frustumCulled);
+        object.frustumCulled = false;
     }
     object.material = pickMaterial;
 };
@@ -382,6 +414,7 @@ class Picking extends Destroyable {
          * @readonly
         */
         this.isWebGPURenderer = (renderer instanceof WebGPURenderer);
+        const pixelRatio = renderer.getPixelRatio();
         /**
          * 射线发射器对象 - {@link https://threejs.org/docs/#Raycaster}
          * @type {Raycaster}
@@ -394,7 +427,7 @@ class Picking extends Destroyable {
          * @readonly
          * @private
         */
-        this.windowColorRenderTarget = new RenderTarget(window.innerWidth, window.innerHeight, {
+        this.windowColorRenderTarget = new RenderTarget(window.innerWidth * pixelRatio, window.innerHeight * pixelRatio, {
             format: RGBAFormat,
             type: UnsignedByteType,
             minFilter: LinearFilter,
@@ -406,7 +439,7 @@ class Picking extends Destroyable {
          * @readonly
          * @private
         */
-        this.windowDepthRenderTarget = new RenderTarget(window.innerWidth, window.innerHeight, {
+        this.windowDepthRenderTarget = new RenderTarget(window.innerWidth * pixelRatio, window.innerHeight * pixelRatio, {
             format: RGBAFormat,
             // type: UnsignedByteType,
             minFilter: LinearFilter,
@@ -466,6 +499,20 @@ class Picking extends Destroyable {
          * @private
         */
         this.pickingMaterials = new Map();
+        /**
+         * 已注册的InstancedSpriteCollection实例集合
+         * @type {Set<InstancedSpriteCollection>}
+         * @readonly
+         * @private
+        */
+        this.instancedSpriteCollections = new Set();
+        /**
+         * InstancedSprite对象到拾取颜色ID的映射表
+         * @type {Map<InstancedSprite, number>}
+         * @readonly
+         * @private
+        */
+        this.instancedSpritePickIds = new Map();
         /**
          * 原始父对象映射表
          * @type {Map<Object3D, Object3D>}
@@ -608,11 +655,13 @@ class Picking extends Destroyable {
                 result.point = result.position;
             if (result.object) {
                 if (!result.root)
-                    result.root = findRoot(result.object);
+                    result.root = result.object.isInstancedSprite ? result.object._collection : findRoot(result.object);
                 if (!result.mesh && result.object.isMesh)
                     result.mesh = result.object;
                 if (!result.sprite && result.object.isSprite)
                     result.sprite = result.object;
+                if (!result.instancedSprite && result.object.isInstancedSprite)
+                    result.instancedSprite = result.object;
                 if (!result.points && result.object.isPoints)
                     result.points = result.object;
                 if (!result.line && (result.object.isLine || result.object.isLineSegments2))
@@ -646,11 +695,34 @@ class Picking extends Destroyable {
         return this._sessions.debugDepthPicking;
     }
     /**
+     * 为InstancedSprite分配唯一的拾取颜色
+     * @param {InstancedSprite} sprite - 要分配拾取颜色的InstancedSprite实例
+     * @private
+    */
+    _assignInstancedSpritePickColor(sprite) {
+        if (this.instancedSpritePickIds.has(sprite))
+            return;
+        const hexColor = this.enableRandomColor ? getRandomHexColor(this.pickingObjects) : getHexColor();
+        sprite.pickColor.setHex(hexColor, LinearSRGBColorSpace);
+        this.instancedSpritePickIds.set(sprite, hexColor);
+        this.pickingObjects.set(hexColor, sprite);
+    }
+    /**
      * 注册拾取对象
      * @param {Object3D} object - 可拾取对象
     */
     registerObject(object) {
         object.traverse((child) => {
+            // InstancedSpriteCollection：注册其所有sprite的拾取颜色，不再深入其内部mesh
+            if (child.isInstancedSpriteCollection) {
+                this.instancedSpriteCollections.add(child);
+                for (const sprite of child.instancedSprites)
+                    this._assignInstancedSpritePickColor(sprite);
+                return true; //停止遍历子对象
+            }
+            // InstancedSpriteMesh：由所属Collection统一处理，跳过
+            if (child.isInstancedSpriteMesh)
+                return true;
             if (this.pickingMaterials.has(child)) {
                 console.warn('该对象已注册。', child);
                 return;
@@ -674,6 +746,20 @@ class Picking extends Destroyable {
     */
     unregisterObject(object) {
         object.traverse((child) => {
+            // InstancedSpriteCollection：注销其所有sprite的拾取颜色
+            if (child.isInstancedSpriteCollection) {
+                this.instancedSpriteCollections.delete(child);
+                for (const sprite of child.instancedSprites) {
+                    const pickId = this.instancedSpritePickIds.get(sprite);
+                    if (pickId !== undefined) {
+                        this.instancedSpritePickIds.delete(sprite);
+                        this.pickingObjects.delete(pickId);
+                    }
+                }
+                return true;
+            }
+            if (child.isInstancedSpriteMesh)
+                return true;
             const pickMaterial = this.pickingMaterials.get(child);
             if (pickMaterial) {
                 this.pickingMaterials.delete(child);
@@ -688,6 +774,8 @@ class Picking extends Destroyable {
     unregisterAllObjects() {
         this.pickingObjects.clear();
         this.pickingMaterials.clear();
+        this.instancedSpriteCollections.clear();
+        this.instancedSpritePickIds.clear();
     }
     /**
      * 设置当前窗口大小
@@ -695,8 +783,9 @@ class Picking extends Destroyable {
      * @param {number} height - 高度
      */
     setSize(width, height) {
-        this.windowColorRenderTarget.setSize(width, height);
-        this.windowDepthRenderTarget.setSize(width, height);
+        const pixelRatio = this.renderer.getPixelRatio();
+        this.windowColorRenderTarget.setSize(width * pixelRatio, height * pixelRatio);
+        this.windowDepthRenderTarget.setSize(width * pixelRatio, height * pixelRatio);
     }
     /**
      * 根据窗口位置获取射线对象
@@ -965,6 +1054,8 @@ class Picking extends Destroyable {
         const ignoreInvisible = options.ignoreInvisible ?? this.ignoreInvisible;
         const checkIgnore = options.checkIgnore;
         const hasCheckIgnore = (typeof checkIgnore === 'function');
+        const instancedSpriteCollections = [];
+        let pointsSize, pointsSizeAttenuation;
 
         let scene = null;
         if (target.isScene) {
@@ -996,6 +1087,19 @@ class Picking extends Destroyable {
                 originalVisibles.set(child, child.visible);
                 child.visible = true;
             }
+            // InstancedSpriteCollection：记录并在颜色渲染阶段切换拾取颜色
+            if (child.isInstancedSpriteCollection) {
+                instancedSpriteCollections.push(child);
+                return true; //停止遍历子对象（其内部mesh由collection统一处理）
+            }
+            // InstancedSpriteMesh：由所属Collection统一处理，跳过
+            if (child.isInstancedSpriteMesh)
+                return true;
+            // 记录Points对象的尺寸，用于深度渲染时匹配点大小
+            if (child.isPoints) {
+                pointsSize = child.material.size;
+                pointsSizeAttenuation = child.material.sizeAttenuation;
+            }
             // 替换拾取材质
             if (colorRenderTarget && pickingMaterials.has(child)) {
                 const pickMaterial = pickingMaterials.get(child);
@@ -1012,17 +1116,79 @@ class Picking extends Destroyable {
         scene.background = scene.environment = scene.overrideMaterial = null;
         // store the original renderTarget
         const renderTarget = renderer.getRenderTarget();
+        // 颜色渲染前：切换InstancedSprite为拾取颜色
+        if (colorRenderTarget && instancedSpriteCollections.length > 0) {
+            for (const collection of instancedSpriteCollections) {
+                for (const sprite of collection.instancedSprites) {
+                    this._assignInstancedSpritePickColor(sprite);
+                    sprite.enablePickColor = true;
+                }
+                collection.update();
+            }
+        }
         if (colorRenderTarget) {
             renderer.setRenderTarget(colorRenderTarget);
             // render the scene
             renderer.render(scene, camera);
         }
+        // 颜色渲染后：恢复InstancedSprite正常渲染
+        if (colorRenderTarget && instancedSpriteCollections.length > 0) {
+            for (const collection of instancedSpriteCollections) {
+                for (const sprite of collection.instancedSprites)
+                    sprite.enablePickColor = false;
+                collection.update();
+            }
+        }
+        // 恢复颜色拾取材质
+        originalMaterials.forEach((material, child) => {
+            child.material = material;
+        });
+        originalMaterials.clear();
         if (depthRenderTarget) {
-            // use depth material
-            scene.overrideMaterial = depthMaterial;
+            // 实例化精灵：切换深度模式（复用其 billboard 顶点着色器），而非隐藏
+            if (instancedSpriteCollections.length > 0) {
+                for (const collection of instancedSpriteCollections) {
+                    for (const mesh of collection.children) {
+                        if (mesh.isInstancedSpriteMesh) {
+                            mesh.material.enableDepth = true;
+                        }
+                    }
+                }
+            }
+            // 其余对象：按对象替换为深度材质（overrideMaterial 会覆盖实例化精灵材质，故改为按对象替换）
+            const depthCallback = (child) => {
+                if (child.isInstancedSpriteCollection) return true;
+                if (child.isInstancedSpriteMesh) return true; // 已通过 enableDepth 处理
+                if (child.material) {
+                    originalMaterials.set(child, child.material);
+                    child.material = depthMaterial;
+                }
+            };
+            ignoreInvisible ? traverseVisible(scene, depthCallback) : traverse(scene, depthCallback);
+            // 匹配Points对象的点大小（gl_PointSize 按画布dpr与高度校准）
+            if (pointsSize !== undefined) {
+                depthMaterial.uniforms.size.value = pointsSize * renderer.getPixelRatio();
+                depthMaterial.uniforms.scale.value = renderer.domElement.clientHeight * 0.5;
+                depthMaterial.uniforms.sizeAttenuation.value = pointsSizeAttenuation ? 1 : 0;
+            }
             renderer.setRenderTarget(depthRenderTarget);
             // render the scene
             renderer.render(scene, camera);
+            // 恢复实例化精灵深度模式
+            if (instancedSpriteCollections.length > 0) {
+                for (const collection of instancedSpriteCollections) {
+                    for (const mesh of collection.children) {
+                        if (mesh.isInstancedSpriteMesh) {
+                            mesh.material.enableDepth = false;
+                        }
+                    }
+                }
+            }
+            // 恢复深度材质
+            originalMaterials.forEach((material, child) => {
+                child.material = material;
+            });
+            originalMaterials.clear();
         }
         // restore the original renderTarget
         renderer.setRenderTarget(renderTarget);
@@ -1030,11 +1196,6 @@ class Picking extends Destroyable {
         scene.background = background;
         scene.environment = environment;
         scene.overrideMaterial = overrideMaterial;
-        // restore the original materials
-        originalMaterials.forEach((material, child) => {
-            child.material = material;
-        });
-        originalMaterials.clear();
         // restore the original visibles
         originalVisibles.forEach((visible, child) => {
             child.visible = visible;
@@ -1180,6 +1341,28 @@ class Picking extends Destroyable {
         }
     }
     /**
+     * 精化拾取结果的位置信息（NORMAL模式使用）：对拾取到的对象做射线检测获取精确位置。
+     * InstancedSprite不是Object3D，无法直接做射线检测，需检测其所属的InstancedSpriteCollection。
+     * @param {Vector2} windowPosition - 窗口坐标位置，格式：{x: number, y: number}
+     * @param {HTMLCanvasElement} canvas - 窗口画布元素
+     * @param {Camera} camera - 相机对象
+     * @param {PickedResult} result - GPU拾取结果对象
+     * @param {object} options - 配置参数
+     * @returns {PickedResult|undefined} 精化后的拾取结果对象
+     * @private
+    */
+    _refinePickPosition(windowPosition, canvas, camera, result, options) {
+        if (result && result.object && result.object.isInstancedSprite) {
+            const collection = result.object._collection;
+            const intersects = this.raycastFromWindow(windowPosition, canvas, camera, collection, options);
+            const match = intersects.find(intersect => intersect.object === result.object);
+            if (match)
+                result.position = result.point = match.point;
+            return result;
+        }
+        return this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
+    }
+    /**
      * @param {WebGPURenderer} renderer - 渲染器实例
      * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
      * @param {Camera} camera - 相机
@@ -1265,7 +1448,7 @@ class Picking extends Destroyable {
                 const pickTarget = options.pickTarget ?? PickTargetType.ALL;
                 result = this.glRenderPick(renderer, windowPosition, camera, target, { ...options, pickTarget: PickTargetType.OBJECT });
                 if (result && pickTarget !== PickTargetType.OBJECT) {
-                    result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
+                    result = this._refinePickPosition(windowPosition, canvas, camera, result, options);
                 }
                 break;
         }
@@ -1301,7 +1484,7 @@ class Picking extends Destroyable {
                 const pickTarget = options.pickTarget ?? PickTargetType.ALL;
                 result = await this.gpuRenderPick(renderer, windowPosition, camera, target, { ...options, pickTarget: PickTargetType.OBJECT });
                 if (result && pickTarget !== PickTargetType.OBJECT) {
-                    result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
+                    result = this._refinePickPosition(windowPosition, canvas, camera, result, options);
                 }
                 break;
         }
@@ -1400,6 +1583,8 @@ class Picking extends Destroyable {
     dispose() {
         this.pickingObjects.clear();
         this.pickingMaterials.clear();
+        this.instancedSpriteCollections.clear();
+        this.instancedSpritePickIds.clear();
         this.originalMaterials.clear();
         this.originalFrustumCulleds.clear();
         this.pickingColorRenderTarget.dispose();
