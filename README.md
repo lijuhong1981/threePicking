@@ -33,13 +33,13 @@ if (result && result.instancedSprite) {
 ## 安装
 
 ```bash
-npm install @lijuhong1981/picking
+npm install @lijuhong1981/three.picking
 ```
 
 ## 使用
 
 ```js
-import Picking from "@lijuhong1981/picking";
+import Picking from "@lijuhong1981/three.picking";
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { WebGPURenderer, Scene, PerspectiveCamera } from "three/webgpu";
 
