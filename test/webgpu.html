@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Picking WebGPU 功能测试</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1f; color: #eee; font-family: system-ui, sans-serif; }
+  #canvas { display: block; }
+  #panel {
+    position: fixed; top: 12px; left: 12px; z-index: 10;
+    background: rgba(0,0,0,.72); padding: 12px 16px; border-radius: 8px;
+    font-size: 13px; line-height: 1.7; max-width: 300px; user-select: none;
+  }
+  #panel h3 { margin: 0 0 8px; font-size: 15px; }
+  #panel .group { margin: 6px 0; }
+  #panel .group-title { color: #9cf; margin-bottom: 2px; }
+  #panel label { margin-right: 8px; cursor: pointer; white-space: nowrap; }
+  #panel input[type="radio"], #panel input[type="checkbox"] { vertical-align: middle; }
+  #result {
+    position: fixed; bottom: 12px; left: 12px; z-index: 10;
+    background: rgba(0,0,0,.72); padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; line-height: 1.6; white-space: pre-wrap; max-width: 460px; font-family: ui-monospace, monospace;
+  }
+  #hint { position: fixed; bottom: 12px; right: 12px; color: #999; font-size: 12px; z-index: 10; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "../node_modules/three/build/three.module.js",
+    "three/addons/": "../node_modules/three/examples/jsm/",
+    "three/tsl": "../node_modules/three/build/three.tsl.js",
+    "three/webgpu": "../node_modules/three/build/three.webgpu.js",
+    "@lijuhong1981/three.utils": "../node_modules/@lijuhong1981/three.utils/index.js",
+    "@lijuhong1981/three.utils/": "../node_modules/@lijuhong1981/three.utils/",
+    "@lijuhong1981/three.instancedsprite": "../node_modules/@lijuhong1981/three.instancedsprite/index.js",
+    "@lijuhong1981/three.instancedsprite/": "../node_modules/@lijuhong1981/three.instancedsprite/",
+    "@lijuhong1981/jscheck/": "../node_modules/@lijuhong1981/jscheck/",
+    "@lijuhong1981/jsdestroy/": "../node_modules/@lijuhong1981/jsdestroy/",
+    "@lijuhong1981/jsmath/": "../node_modules/@lijuhong1981/jsmath/",
+    "@lijuhong1981/jsload/": "../node_modules/@lijuhong1981/jsload/",
+    "@lijuhong1981/jslib/": "../node_modules/@lijuhong1981/jslib/",
+    "@lijuhong1981/jslibs/": "../node_modules/@lijuhong1981/jslibs/",
+    "@lijuhong1981/jstask/": "../node_modules/@lijuhong1981/jstask/",
+    "@lijuhong1981/jsevents/": "../node_modules/@lijuhong1981/jsevents/",
+    "@lijuhong1981/jstime/": "../node_modules/@lijuhong1981/jstime/",
+    "@lijuhong1981/jscolor/": "../node_modules/@lijuhong1981/jscolor/",
+    "@lijuhong1981/jsurl/": "../node_modules/@lijuhong1981/jsurl/",
+    "@lijuhong1981/jstext/": "../node_modules/@lijuhong1981/jstext/",
+    "@lijuhong1981/jsgif/": "../node_modules/@lijuhong1981/jsgif/",
+    "@lijuhong1981/jsapng/": "../node_modules/@lijuhong1981/jsapng/",
+    "@lijuhong1981/jshtml/": "../node_modules/@lijuhong1981/jshtml/",
+    "@lijuhong1981/jswindfield/": "../node_modules/@lijuhong1981/jswindfield/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="panel">
+  <h3>Picking WebGPU 功能测试</h3>
+  <div class="group">
+    <div class="group-title">拾取模式</div>
+    <label><input type="radio" name="mode" value="fast"> FAST（GPU）</label>
+    <label><input type="radio" name="mode" value="normal" checked> NORMAL（推荐）</label>
+    <label><input type="radio" name="mode" value="precision"> PRECISION（CPU）</label>
+  </div>
+  <div class="group">
+    <div class="group-title">拾取目标</div>
+    <label><input type="radio" name="target" value="all" checked> ALL</label>
+    <label><input type="radio" name="target" value="object"> OBJECT</label>
+    <label><input type="radio" name="target" value="position"> POSITION</label>
+  </div>
+  <div class="group">
+    <div class="group-title">调试</div>
+    <label><input type="checkbox" id="debugColor"> 颜色拾取视图</label>
+    <label><input type="checkbox" id="debugDepth"> 深度拾取视图</label>
+    <label><input type="checkbox" id="ignoreInvisible" checked> 忽略不可见</label>
+  </div>
+</div>
+
+<div id="result">点击场景中的对象进行拾取测试……\n（左上红/绿/蓝=Mesh，橙色=Sprite，青色=Line，品红=Point（Sprite 表示），右侧=InstancedSprite）</div>
+<div id="hint">Hover: -</div>
+
+<script type="module" src="./webgpu.js"></script>
+</body>
+</html>

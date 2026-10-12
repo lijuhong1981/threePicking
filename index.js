@@ -1165,8 +1165,8 @@ class Picking extends Destroyable {
                 }
             };
             ignoreInvisible ? traverseVisible(scene, depthCallback) : traverse(scene, depthCallback);
-            // 匹配Points对象的点大小（gl_PointSize 按画布dpr与高度校准）
-            if (pointsSize !== undefined) {
+            // 匹配Points对象的点大小（gl_PointSize 按画布dpr与高度校准，仅WebGL深度材质有uniforms）
+            if (pointsSize !== undefined && depthMaterial.uniforms) {
                 depthMaterial.uniforms.size.value = pointsSize * renderer.getPixelRatio();
                 depthMaterial.uniforms.scale.value = renderer.domElement.clientHeight * 0.5;
                 depthMaterial.uniforms.sizeAttenuation.value = pointsSizeAttenuation ? 1 : 0;
