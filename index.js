@@ -597,11 +597,10 @@ class Picking extends Destroyable {
     /**
      * 确保拾取结果函数，用于确保拾取结果对象的属性完整，可由用户自定义。
      * @param {PickedResult} result - 拾取结果对象
-     * @param {object} options - 配置参数，参见{@link Picking#raycast}
      * @return {PickedResult} 返回拾取结果对象
      * @private
     */
-    ensurePickedResult(result, options) {
+    ensurePickedResult(result) {
         if (result) {
             if (!result.position && result.point)
                 result.position = result.point;
@@ -749,7 +748,7 @@ class Picking extends Destroyable {
             intersectObject(target, this.raycaster, intersects, options.recursive, ignoreInvisible, checkIgnore);
         const result = [];
         intersects.forEach(intersect => {
-            const pickedResult = this.ensurePickedResult(intersect, options);
+            const pickedResult = this.ensurePickedResult(intersect);
             pickedResult && result.push(pickedResult);
         });
         return result;
@@ -931,7 +930,7 @@ class Picking extends Destroyable {
         const direction = new Vector3().subVectors(to, from).normalize();
         const distance = from.distanceTo(to);
         this.raycaster.set(from, direction);
-        return this.raycast(target, Object.assign(options, { near: 0, far: distance }));
+        return this.raycast(target, { ...options, near: 0, far: distance });
     }
     /**
      * 从起点到终点发射射线进行检测，即CPU拾取，只返回最近的相交结果对象
@@ -1049,7 +1048,10 @@ class Picking extends Destroyable {
         // restore the object to its original parent
         if (originalParents.size > 0) {
             originalParents.forEach((parent, child) => {
-                parent.add(child);
+                if (parent)
+                    parent.add(child);
+                else
+                    child.removeFromParent();
             });
             originalParents.clear();
         }
@@ -1083,10 +1085,13 @@ class Picking extends Destroyable {
             1,                          // rect width
             1,                          // rect height
         );
-        // render to picking render target
-        this.renderScene(renderer, camera, target, colorRenderTarget, depthRenderTarget, options);
-        // clear the view offset so rendering returns to normal
-        camera.clearViewOffset();
+        try {
+            // render to picking render target
+            this.renderScene(renderer, camera, target, colorRenderTarget, depthRenderTarget, options);
+        } finally {
+            // clear the view offset so rendering returns to normal
+            camera.clearViewOffset();
+        }
     }
     /**
      * @param {WebGLRenderer} renderer - 渲染器实例
@@ -1119,12 +1124,7 @@ class Picking extends Destroyable {
                 1, // width
                 1, // height
                 ubyteBuffer);
-            // decode the id
-            const id =
-                (ubyteBuffer[0] << 16) |
-                (ubyteBuffer[1] << 8) |
-                (ubyteBuffer[2] << 0);
-            object = this.pickingObjects.get(id);
+            object = this._decodeColorBuffer(ubyteBuffer);
         }
         if (pickPosition) {
             // read the depth render target pixel
@@ -1136,14 +1136,7 @@ class Picking extends Destroyable {
                 1, // width
                 1, // height
                 floatBuffer);
-            if (floatBuffer[3] > 0) {
-                const depth = unpackRGBToDepth(floatBuffer);
-                if (depth !== 0) {
-                    const ndc = getNDCInElement(renderer.domElement, windowPosition, scratchVector3);
-                    ndc.z = depth * 2 - 1;
-                    position = ndcToWorldCoords(ndc, camera);
-                }
-            }
+            position = this._decodeDepthBuffer(floatBuffer, renderer, windowPosition, camera);
         }
         if (object || position) {
             const result = {};
@@ -1152,6 +1145,38 @@ class Picking extends Destroyable {
             if (position)
                 result.position = result.point = position;
             return result;
+        }
+    }
+    /**
+     * 从颜色缓冲区解码拾取对象ID并返回对应对象。
+     * @param {Uint8Array} buffer - 颜色缓冲区
+     * @returns {Object3D|undefined} 拾取到的对象实例，未拾取到则返回undefined。
+     * @private
+    */
+    _decodeColorBuffer(buffer) {
+        const id =
+            (buffer[0] << 16) |
+            (buffer[1] << 8) |
+            (buffer[2] << 0);
+        return this.pickingObjects.get(id);
+    }
+    /**
+     * 从深度缓冲区解码世界坐标位置。
+     * @param {Float32Array} floatBuffer - 深度缓冲区
+     * @param {WebGLRenderer|WebGPURenderer} renderer - 渲染器实例
+     * @param {Vector2} windowPosition - 窗口坐标位置，格式：{x: number, y: number}
+     * @param {Camera} camera - 相机
+     * @returns {Vector3|undefined} 拾取到的世界坐标位置，未拾取到则返回undefined。
+     * @private
+    */
+    _decodeDepthBuffer(floatBuffer, renderer, windowPosition, camera) {
+        if (floatBuffer[3] > 0) {
+            const depth = unpackRGBToDepth(floatBuffer);
+            if (depth !== 0) {
+                const ndc = getNDCInElement(renderer.domElement, windowPosition, scratchVector3);
+                ndc.z = depth * 2 - 1;
+                return ndcToWorldCoords(ndc, camera);
+            }
         }
     }
     /**
@@ -1186,42 +1211,20 @@ class Picking extends Destroyable {
                 0, // x
                 0, // y
                 1, // width
-                1, // height);
+                1, // height
             );
-            // decode the id
-            const id =
-                (ubyteBuffer[0] << 16) |
-                (ubyteBuffer[1] << 8) |
-                (ubyteBuffer[2] << 0);
-            object = this.pickingObjects.get(id);
+            object = this._decodeColorBuffer(ubyteBuffer);
         }
         if (pickPosition) {
             // read the depth render target pixel
-            let floatBuffer = this._sessions.floatBuffer;
-            if (renderer.isWebGLRenderer)
-                renderer.readRenderTargetPixels(
-                    pickingDepthRenderTarget,
-                    0, // x
-                    0, // y
-                    1, // width
-                    1, // height
-                    floatBuffer);
-            else if (renderer.isWebGPURenderer)
-                floatBuffer = await renderer.readRenderTargetPixelsAsync(
-                    pickingDepthRenderTarget,
-                    0, // x
-                    0, // y
-                    1, // width
-                    1, // height
-                );
-            if (floatBuffer[3] > 0) {
-                const depth = unpackRGBToDepth(floatBuffer);
-                if (depth !== 0) {
-                    const ndc = getNDCInElement(renderer.domElement, windowPosition, scratchVector3);
-                    ndc.z = depth * 2 - 1;
-                    position = ndcToWorldCoords(ndc, camera);
-                }
-            }
+            const floatBuffer = await renderer.readRenderTargetPixelsAsync(
+                pickingDepthRenderTarget,
+                0, // x
+                0, // y
+                1, // width
+                1, // height
+            );
+            position = this._decodeDepthBuffer(floatBuffer, renderer, windowPosition, camera);
         }
         if (object || position) {
             const result = {};
@@ -1231,27 +1234,6 @@ class Picking extends Destroyable {
                 result.position = result.point = position;
             return result;
         }
-    }
-    /**
-     * 渲染拾取，即GPU拾取，先将场景渲染至RenderTarget后读取像素进行拾取，WebGL同步返回，WebGPU异步返回拾取结果。
-     * @param {Vector2} windowPosition - Window coordinates to perform picking on，格式：{x: number, y: number}
-     * @param {Camera} camera - 相机
-     * @param {Scene|Object3D|Array<Object3D>} target - 拾取目标，可以是场景、对象或对象数组
-     * @param {object} [options] - 配置参数
-     * @param {PickTargetType} [options.pickTarget] - 指定拾取的目标类型，默认PickTargetType.ALL
-     * @param {boolean} [options.ignoreInvisible] - 是否忽略不可见对象，未指定则使用{@link Picking#ignoreInvisible}属性
-     * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
-     * @returns {RenderPickResult|Promise<RenderPickResult>} 拾取结果，WebGL同步返回，WebGPU异步返回，详见{@link Picking.PickedResult}。
-     * @private
-    */
-    renderPick(windowPosition, camera, target, options = {}) {
-        const renderer = this.renderer;
-        if (renderer.isWebGLRenderer)
-            return this.glRenderPick(renderer, windowPosition, camera, target, options);
-        else if (renderer.isWebGPURenderer)
-            return this.gpuRenderPick(renderer, windowPosition, camera, target, options);
-        else
-            throw new Error("renderer must be WebGLRenderer or WebGPURenderer.");
     }
     /**
      * @param {WebGLRenderer} renderer - 渲染器实例 
@@ -1268,7 +1250,7 @@ class Picking extends Destroyable {
      * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|undefined} 同步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
-    glPick(renderer, windowPosition, camera, target, options) {
+    glPick(renderer, windowPosition, camera, target, options = {}) {
         const canvas = this.canvas;
         const pickingMode = options.mode ?? this.mode;
         let result = undefined;
@@ -1281,14 +1263,13 @@ class Picking extends Destroyable {
                 break;
             case PickingMode.NORMAL:
                 const pickTarget = options.pickTarget ?? PickTargetType.ALL;
-                options.pickTarget = PickTargetType.OBJECT;
-                result = this.glRenderPick(renderer, windowPosition, camera, target, options);
+                result = this.glRenderPick(renderer, windowPosition, camera, target, { ...options, pickTarget: PickTargetType.OBJECT });
                 if (result && pickTarget !== PickTargetType.OBJECT) {
                     result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
                 }
                 break;
         }
-        return this.ensurePickedResult(result, options);
+        return this.ensurePickedResult(result);
     }
     /**
      * @param {WebGPURenderer} renderer - 渲染器实例 
@@ -1305,7 +1286,7 @@ class Picking extends Destroyable {
      * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {Promise<PickedResult|undefined>} 异步返回拾取结果对象，详见{@link Picking.PickedResult}。
     */
-    async gpuPick(renderer, windowPosition, camera, target, options) {
+    async gpuPick(renderer, windowPosition, camera, target, options = {}) {
         const canvas = this.canvas;
         const pickingMode = options.mode ?? this.mode;
         let result = undefined;
@@ -1318,14 +1299,13 @@ class Picking extends Destroyable {
                 break;
             case PickingMode.NORMAL:
                 const pickTarget = options.pickTarget ?? PickTargetType.ALL;
-                options.pickTarget = PickTargetType.OBJECT;
-                result = await this.gpuRenderPick(renderer, windowPosition, camera, target, options);
+                result = await this.gpuRenderPick(renderer, windowPosition, camera, target, { ...options, pickTarget: PickTargetType.OBJECT });
                 if (result && pickTarget !== PickTargetType.OBJECT) {
                     result = this.raycastNearestFromWindow(windowPosition, canvas, camera, result.object, options);
                 }
                 break;
         }
-        return this.ensurePickedResult(result, options);
+        return this.ensurePickedResult(result);
     }
     /**
      * 根据窗口位置拾取，WebGL同步返回，WebGPU异步返回拾取结果。
@@ -1342,7 +1322,7 @@ class Picking extends Destroyable {
      * @param {Function} [options.checkIgnore] - 是否忽略对象的回调函数，参数为对象实例，返回true表示忽略该对象，false表示不忽略
      * @returns {PickedResult|Promise<PickedResult>} 拾取结果，WebGL同步返回，WebGPU异步返回，详见{@link Picking.PickedResult}。
     */
-    pick(windowPosition, camera, target, options) {
+    pick(windowPosition, camera, target, options = {}) {
         const renderer = this.renderer;
         if (renderer.isWebGLRenderer)
             return this.glPick(renderer, windowPosition, camera, target, options);
@@ -1426,10 +1406,15 @@ class Picking extends Destroyable {
         this.pickingDepthRenderTarget.dispose();
         this.windowColorRenderTarget.dispose();
         this.windowDepthRenderTarget.dispose();
-        if (this.postQuad.isQuadMesh)
-            this.postQuad.dispose();
-        else
+        if (this.postQuad.isQuadMesh) {
+            // WebGPU QuadMesh：dispose() 只释放几何体，材质需单独释放
             this.postQuad.material.dispose();
+            this.postQuad.dispose();
+        } else {
+            // WebGL Mesh：几何体与材质需分别释放
+            this.postQuad.geometry.dispose();
+            this.postQuad.material.dispose();
+        }
     }
     onDestroy() {
         this.dispose();
