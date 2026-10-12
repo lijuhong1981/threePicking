@@ -1,6 +1,6 @@
 {
   "name": "@lijuhong1981/picking",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "",
   "type": "module",
   "module": "index.js",
@@ -18,14 +18,18 @@
   },
   "keywords": [
     "three",
+    "threejs",
+    "picking",
+    "picker",
+    "raycast",
+    "raycaster",
+    "selection",
     "webgl",
     "webgpu",
-    "picking",
-    "raycast",
-    "gpupick",
-    "renderpick",
-    "colorpick",
-    "depthpick"
+    "gpu-picking",
+    "color-picking",
+    "depth-picking",
+    "render-picking"
   ],
   "author": "lijuhong1981",
   "license": "ISC",
