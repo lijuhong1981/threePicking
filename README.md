@@ -15,6 +15,8 @@
 
 ### InstancedSprite 拾取
 
+> 需额外安装 `@lijuhong1981/three.instancedsprite`（可选 peer 依赖）。
+
 ```js
 import { InstancedSpriteCollection } from "@lijuhong1981/three.instancedsprite";
 

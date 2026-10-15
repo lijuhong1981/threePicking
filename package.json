@@ -1,6 +1,6 @@
 {
   "name": "@lijuhong1981/three.picking",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "",
   "type": "module",
   "module": "index.js",
@@ -43,12 +43,23 @@
   },
   "homepage": "https://github.com/lijuhong1981/threePicking#readme",
   "dependencies": {
-    "@lijuhong1981/jslibs": "^1.4.28",
-    "@lijuhong1981/three.instancedsprite": "^2.2.0",
-    "@lijuhong1981/three.utils": "^1.0.4",
+    "@lijuhong1981/jscheck": "^1.1.8",
+    "@lijuhong1981/jsdestroy": "^1.2.8",
+    "@lijuhong1981/jsmath": "^1.3.7",
+    "@lijuhong1981/three.utils": "^1.0.5"
+  },
+  "peerDependencies": {
+    "@lijuhong1981/three.instancedsprite": ">=2.2.0",
     "three": ">=0.171.0"
   },
+  "peerDependenciesMeta": {
+    "@lijuhong1981/three.instancedsprite": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "jsdoc-to-markdown": "^9.1.3"
+    "@lijuhong1981/three.instancedsprite": "^2.2.3",
+    "jsdoc-to-markdown": "^9.1.3",
+    "three": ">=0.171.0"
   }
 }
